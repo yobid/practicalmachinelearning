@@ -32,14 +32,14 @@ library(rpart)
 library(rpart.plot)
 library(randomForest)
 set.seed(202020)
-# removing useless variables : time and user name and window
-alldata <- data[,-(2:7)]
+# remove values that have low variance
+nzv <- nearZeroVar(data)
+alldata <- data[,-nzv]
 # remove variables that are mostly NA
 NaCol <- sapply(alldata, function(x) mean(is.na(x)))>.95
 alldata <- alldata[,NaCol==FALSE]
-# remove values that have low variance
-nzv <- nearZeroVar(alldata)
-alldata <- alldata[,-nzv]
+# remove useless variables : user details and time
+alldata <- alldata[,-(1:5)]
 ```
 We did remove a bunch of variables, as they were not useful such as user description and time series, variables which were mostly NA, and low variance ones. 
 
@@ -55,24 +55,28 @@ test <- alldata[-inTrain,]
 
 ## Regression tree
 ```{r}
-fit1 <- rpart(classe~., data=train, method="class")
-rpart.plot(fit1)
-pred1 <- predict(fit1, test, type="class")
+set.seed(12345)
+control <- trainControl(method="cv", number=3, verboseIter=FALSE)
+fit1 <- train(classe~., data=train, method="rpart", trControl=control)
+rpart.plot(fit1$finalModel)
+pred1 <- predict(fit1, newdata=test)
 confusionMatrix(pred1, test$classe)$overall
 ```
-Accuracy is quite good but we tried to use random forest to see if it can be better.
+Accuracy is 52% but we tried to use random forest to see if it can be better.
 
 ## Random forest
 ```{r}
-fit2 <- randomForest(classe~., data=train, model="class")
-pred2<- predict(fit2, test, type="class")
+control <- trainControl(method="cv", number=3, verboseIter=FALSE)
+fit2 <- train(classe~., data=train, method="rf", trControl=control)
+fit2$finalModel
+pred2<- predict(fit2, test)
 confusionMatrix(pred2, test$classe)$overall
 ```
-This model seems fine to predict the quiz.
+We will choose this model to predict the quizz as the accuracy is 99.6%!
 
 # Prediction quizz
 ```{r}
-quiz <- predict(fit2, validating, model="class")
+quiz <- predict(fit2, validating)
 head(quiz)
 ```
-Thank you for reading this far !
+Thank you for reading this far!

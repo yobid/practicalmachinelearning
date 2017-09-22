@@ -64,14 +64,14 @@ library(randomForest)
 
 ```r
 set.seed(202020)
-# removing useless variables : time and user name and window
-alldata <- data[,-(2:7)]
+# remove values that have low variance
+nzv <- nearZeroVar(data)
+alldata <- data[,-nzv]
 # remove variables that are mostly NA
 NaCol <- sapply(alldata, function(x) mean(is.na(x)))>.95
 alldata <- alldata[,NaCol==FALSE]
-# remove values that have low variance
-nzv <- nearZeroVar(alldata)
-alldata <- alldata[,-nzv]
+# remove useless variables : user details and time
+alldata <- alldata[,-(1:5)]
 ```
 We did remove a bunch of variables, as they were not useful such as user description and time series, variables which were mostly NA, and low variance ones. 
 
@@ -89,51 +89,75 @@ test <- alldata[-inTrain,]
 ## Regression tree
 
 ```r
-fit1 <- rpart(classe~., data=train, method="class")
-rpart.plot(fit1)
+set.seed(12345)
+control <- trainControl(method="cv", number=3, verboseIter=FALSE)
+fit1 <- train(classe~., data=train, method="rpart", trControl=control)
+rpart.plot(fit1$finalModel)
 ```
 
 ![](index_files/figure-html/unnamed-chunk-4-1.png)<!-- -->
 
 ```r
-pred1 <- predict(fit1, test, type="class")
+pred1 <- predict(fit1, newdata=test)
 confusionMatrix(pred1, test$classe)$overall
 ```
 
 ```
 ##       Accuracy          Kappa  AccuracyLower  AccuracyUpper   AccuracyNull 
-##      0.9996602      0.9995701      0.9987729      0.9999588      0.2844520 
+##      0.5673747      0.4473015      0.5546009      0.5800816      0.2844520 
 ## AccuracyPValue  McnemarPValue 
-##      0.0000000            NaN
+##      0.0000000      0.0000000
 ```
-Accuracy is quite good but we tried to use random forest to see if it can be better.
+Accuracy is 52% but we tried to use random forest to see if it can be better.
 
 ## Random forest
 
 ```r
-fit2 <- randomForest(classe~., data=train, model="class")
-pred2<- predict(fit2, test, type="class")
+control <- trainControl(method="cv", number=3, verboseIter=FALSE)
+fit2 <- train(classe~., data=train, method="rf", trControl=control)
+fit2$finalModel
+```
+
+```
+## 
+## Call:
+##  randomForest(x = x, y = y, mtry = param$mtry) 
+##                Type of random forest: classification
+##                      Number of trees: 500
+## No. of variables tried at each split: 27
+## 
+##         OOB estimate of  error rate: 0.19%
+## Confusion matrix:
+##      A    B    C    D    E class.error
+## A 3906    0    0    0    0 0.000000000
+## B    8 2650    0    0    0 0.003009782
+## C    0    5 2390    1    0 0.002504174
+## D    0    1    7 2244    0 0.003552398
+## E    0    0    0    4 2521 0.001584158
+```
+
+```r
+pred2<- predict(fit2, test)
 confusionMatrix(pred2, test$classe)$overall
 ```
 
 ```
 ##       Accuracy          Kappa  AccuracyLower  AccuracyUpper   AccuracyNull 
-##      1.0000000      1.0000000      0.9993734      1.0000000      0.2844520 
+##      0.9967715      0.9959161      0.9949628      0.9980551      0.2844520 
 ## AccuracyPValue  McnemarPValue 
 ##      0.0000000            NaN
 ```
-This model seems fine to predict the quiz.
+We will choose this model to predict the quizz as the accuracy is 99.6%!
 
 # Prediction quizz
 
 ```r
-quiz <- predict(fit2, validating, model="class")
+quiz <- predict(fit2, validating)
 head(quiz)
 ```
 
 ```
-## 1 2 3 4 5 6 
-## A A A A A A 
+## [1] B A B A A E
 ## Levels: A B C D E
 ```
 Thank you for reading this far !
